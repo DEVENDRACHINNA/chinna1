@@ -1,42 +1,50 @@
 <!DOCTYPE html>
 <html>
 <head>
-<title>3D Car Game</title>
+<title>Ultimate 3D Car Game</title>
+
 <style>
 body{
 margin:0;
 overflow:hidden;
-background:#000;
+background:black;
 font-family:Arial;
 }
 
-#score{
+#ui{
 position:absolute;
 top:10px;
 left:10px;
 color:white;
-font-size:20px;
+font-size:22px;
 }
 </style>
+
 </head>
 
 <body>
 
-<div id="score">Score: 0</div>
+<div id="ui">Score: 0</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 
 <script>
 
 let scene = new THREE.Scene();
-let camera = new THREE.PerspectiveCamera(75,window.innerWidth/window.innerHeight,0.1,1000);
+scene.background = new THREE.Color(0x87ceeb);
+
+let camera = new THREE.PerspectiveCamera(
+75,
+window.innerWidth/window.innerHeight,
+0.1,
+1000
+);
 
 let renderer = new THREE.WebGLRenderer({antialias:true});
 renderer.setSize(window.innerWidth,window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
-camera.position.set(0,5,8);
-camera.lookAt(0,0,0);
+camera.position.set(0,6,12);
 
 let light = new THREE.DirectionalLight(0xffffff,1);
 light.position.set(5,10,5);
@@ -45,46 +53,92 @@ scene.add(light);
 let ambient = new THREE.AmbientLight(0x404040);
 scene.add(ambient);
 
-let roadGeometry = new THREE.PlaneGeometry(10,200);
+let roadGeometry = new THREE.PlaneGeometry(20,1000);
 let roadMaterial = new THREE.MeshPhongMaterial({color:0x333333});
+
 let road = new THREE.Mesh(roadGeometry,roadMaterial);
 road.rotation.x = -Math.PI/2;
 scene.add(road);
 
-let carGeometry = new THREE.BoxGeometry(1,0.6,2);
+let lineMaterial = new THREE.MeshBasicMaterial({color:0xffffff});
+
+for(let i=-6;i<=6;i+=6){
+
+let geo = new THREE.PlaneGeometry(0.3,1000);
+let line = new THREE.Mesh(geo,lineMaterial);
+
+line.rotation.x = -Math.PI/2;
+line.position.x = i;
+
+scene.add(line);
+
+}
+
+function createBuilding(x,z){
+
+let geo = new THREE.BoxGeometry(5,Math.random()*20+10,5);
+let mat = new THREE.MeshPhongMaterial({color:0x888888});
+
+let building = new THREE.Mesh(geo,mat);
+
+building.position.set(x,geo.parameters.height/2,z);
+
+scene.add(building);
+
+}
+
+for(let i=0;i<50;i++){
+
+createBuilding(-20,-i*40);
+createBuilding(20,-i*40);
+
+}
+
+let carGeometry = new THREE.BoxGeometry(2,1,4);
 let carMaterial = new THREE.MeshPhongMaterial({color:0xff0000});
+
 let car = new THREE.Mesh(carGeometry,carMaterial);
-car.position.y = 0.3;
+car.position.y = 0.5;
+
 scene.add(car);
 
-let obstacles = [];
+let traffic = [];
+let speed = 0.5;
 let score = 0;
 
-function createObstacle(){
+function spawnTraffic(){
 
-let geo = new THREE.BoxGeometry(1,1,1);
+let geo = new THREE.BoxGeometry(2,1,4);
 let mat = new THREE.MeshPhongMaterial({color:0xffff00});
-let cube = new THREE.Mesh(geo,mat);
 
-cube.position.x = (Math.random()*6)-3;
-cube.position.z = -50;
+let enemy = new THREE.Mesh(geo,mat);
 
-scene.add(cube);
-obstacles.push(cube);
+let lanes = [-6,0,6];
+
+enemy.position.x = lanes[Math.floor(Math.random()*3)];
+enemy.position.z = -200;
+enemy.position.y = 0.5;
+
+scene.add(enemy);
+traffic.push(enemy);
 
 }
 
-setInterval(createObstacle,1500);
+setInterval(spawnTraffic,1500);
 
-document.addEventListener("keydown",function(e){
+document.addEventListener("keydown",e=>{
 
-if(e.key=="ArrowLeft" && car.position.x>-4){
-car.position.x -= 0.5;
-}
+if((e.key=="ArrowLeft" || e.key=="a") && car.position.x>-6)
+car.position.x -= 6;
 
-if(e.key=="ArrowRight" && car.position.x<4){
-car.position.x += 0.5;
-}
+if((e.key=="ArrowRight" || e.key=="d") && car.position.x<6)
+car.position.x += 6;
+
+if(e.key=="ArrowUp" || e.key=="w")
+speed += 0.1;
+
+if(e.key=="ArrowDown" || e.key=="s")
+speed -= 0.05;
 
 });
 
@@ -92,26 +146,35 @@ function animate(){
 
 requestAnimationFrame(animate);
 
-obstacles.forEach((obs,i)=>{
+traffic.forEach((t,i)=>{
 
-obs.position.z += 0.5;
+t.position.z += speed;
 
-if(obs.position.z > 10){
-scene.remove(obs);
-obstacles.splice(i,1);
+if(t.position.z > 20){
+
+scene.remove(t);
+traffic.splice(i,1);
+
 score++;
-document.getElementById("score").innerText="Score: "+score;
+
+document.getElementById("ui").innerHTML="Score: "+score;
+
 }
 
 if(
-Math.abs(obs.position.x-car.position.x)<1 &&
-Math.abs(obs.position.z-car.position.z)<1
+Math.abs(t.position.x-car.position.x)<2 &&
+Math.abs(t.position.z-car.position.z)<3
 ){
-alert("Game Over! Score: "+score);
+
+alert("💥 Crash! Game Over\nScore: "+score);
 location.reload();
+
 }
 
 });
+
+camera.position.z = car.position.z + 12;
+camera.lookAt(car.position);
 
 renderer.render(scene,camera);
 
